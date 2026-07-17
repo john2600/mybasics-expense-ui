@@ -1,0 +1,63 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+npm run dev        # start dev server (http://localhost:5173)
+npm run build      # type-check + vite build
+npm run lint       # eslint with zero warnings allowed
+npm run preview    # serve the dist/ build locally
+npx tsc --noEmit   # type-check only, no output
+```
+
+There are no tests configured. No test runner is installed.
+
+## Environment
+
+Copy `.env.example` to `.env` and set `VITE_API_URL` if the backend runs on a different host/port. Default is `http://localhost:8082/api/v1`.
+
+## Architecture
+
+### Routing
+
+There is no router library. Navigation is plain `useState` in `App.tsx` — a `page` string switches between `'dashboard'`, `'movements'`, and `'settings'`. `MainLayout` receives `activePage` and `onNavigate` props; `Sidebar` calls `onNavigate` on click.
+
+### Data flow
+
+All server state goes through **TanStack Query v5** (`@tanstack/react-query`). The single `QueryClient` lives in `App.tsx` with `staleTime: 30_000` and `retry: 1`.
+
+`src/services/api.ts` is the only HTTP layer — a thin `request<T>` wrapper around `fetch` that unwraps the backend envelope `{ data, error }` and throws on non-2xx. All hooks call `api.*` methods; no component calls `fetch` directly.
+
+### Billing period logic
+
+The backend has a configurable `cut_day` (1–28) stored in `IncomeConfig`. All date-ranged API calls use the period `[cutDay of this/last month … cutDay−1 of next month]` computed by `getCurrentPeriod(cutDay)` in `src/utils/formatters.ts`. **`useDashboardData`** bootstraps this: it first fetches `IncomeConfig`, derives both the current and previous period, then fires the balance queries for each.
+
+Any feature that needs "current period" must go through `useDashboardData` or call `getCurrentPeriod`/`getPreviousPeriod` directly — hardcoding calendar-month boundaries is wrong.
+
+### API contract
+
+- `MovementType` is `"E"` (expense) | `"I"` (income) — **not** `"expense"/"income"`.
+- `GET /movements` returns `GroupedByCategory[]` (movements nested under each category group).
+- `GET /movements/expenses` returns a flat `Movement[]` sorted newest-first — use this for lists.
+- `GET /balance` returns `BalanceSummary` which embeds `income_config`; balance = `(income_config.amount + incomes) − expenses`.
+- `DELETE /movements/{id}` returns `204 No Content` (no body).
+- `Category` has no `type` field from the API — categories are universal. The `EXPENSE_CATEGORIES`/`INCOME_CATEGORIES` split in `src/constants/categories.ts` is a local fallback only.
+
+### React Query key conventions
+
+| Key | Hook |
+|---|---|
+| `['categories']` | `useCategories` |
+| `['movements', params]` | `useMovements` |
+| `['expenses', params]` | `useExpenses` |
+| `['movements-summary']` | `useMovementsSummary` |
+| `['balance', params]` | `useBalance` |
+| `['income-config']` | `useIncomeConfig` |
+
+Mutations invalidate `['movements']`, `['expenses']`, and `['balance']` on success.
+
+### Styling
+
+Tailwind CSS only — no CSS modules or styled-components. Color palette: `blue-500` primary, `green-500` income, `red-500` expense, `gray-50` background. Charts (`recharts`) use `React.memo` to avoid re-renders.

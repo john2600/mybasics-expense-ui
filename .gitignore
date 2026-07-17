@@ -1,0 +1,20 @@
+# dependencias
+node_modules
+
+# build
+dist
+
+# cache de TypeScript
+*.tsbuildinfo
+
+# entorno local (.env.example si se versiona)
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# logs
+*.log
+npm-debug.log*
