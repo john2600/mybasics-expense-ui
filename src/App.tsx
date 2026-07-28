@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { MainLayout } from './components/layout/MainLayout';
+import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MovementsList } from './components/movements/MovementsList';
 import { SettingsPage } from './pages/SettingsPage';
@@ -16,7 +18,7 @@ const queryClient = new QueryClient({
   },
 });
 
-export default function App() {
+function AuthenticatedApp() {
   const [page, setPage] = useState('dashboard');
 
   const renderPage = () => {
@@ -30,10 +32,23 @@ export default function App() {
   };
 
   return (
+    <MainLayout activePage={page} onNavigate={setPage}>
+      {renderPage()}
+    </MainLayout>
+  );
+}
+
+function AppContent() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <AuthenticatedApp /> : <LoginPage />;
+}
+
+export default function App() {
+  return (
     <QueryClientProvider client={queryClient}>
-      <MainLayout activePage={page} onNavigate={setPage}>
-        {renderPage()}
-      </MainLayout>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

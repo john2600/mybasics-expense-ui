@@ -65,6 +65,21 @@ export interface BalanceSummary {
   income_config: IncomeConfig;
 }
 
+export interface AuthUser {
+  username: string;
+  name: string;
+}
+
+export interface AuthSession {
+  token: string;
+  user: AuthUser;
+}
+
+export interface LoginPayload {
+  username: string;
+  password: string;
+}
+
 export interface ApiEnvelope<T> {
   data?: T;
   error?: string;
