@@ -1,17 +1,28 @@
 import React, { useState } from 'react';
 import { Button } from '../components/common/Button';
+import { AuthField } from '../components/auth/AuthField';
+import { AuthShell } from '../components/auth/AuthShell';
 import { useAuth } from '../context/AuthContext';
 import { MOCK_INVALID_USERNAME } from '../services/authApi';
 
-const inputClass =
-  'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400';
+interface LoginPageProps {
+  onGoToRegister: () => void;
+  /** Usuario precargado, p. ej. el recién registrado. */
+  initialUsername?: string;
+  /** Aviso informativo mostrado al abrir la pantalla. */
+  initialNotice?: string;
+}
 
-export const LoginPage: React.FC = () => {
+export const LoginPage: React.FC<LoginPageProps> = ({
+  onGoToRegister,
+  initialUsername = '',
+  initialNotice = '',
+}) => {
   const { login } = useAuth();
 
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [form, setForm] = useState({ username: initialUsername, password: '' });
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(initialNotice);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,75 +45,59 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4">
-        <span className="text-lg font-bold text-blue-600">💰 MyExpenses</span>
-      </header>
+    <AuthShell
+      title="Iniciar sesión"
+      subtitle="Accede para gestionar tus gastos."
+      footer={
+        <>
+          Modo demo: cualquier usuario y contraseña inician sesión. Usa{' '}
+          <code className="font-mono text-gray-500">{MOCK_INVALID_USERNAME}</code> como usuario para
+          ver el error.
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <AuthField
+          id="username"
+          label="Usuario"
+          type="text"
+          autoComplete="username"
+          autoFocus
+          value={form.username}
+          onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+          placeholder="tu.usuario"
+        />
 
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 w-full max-w-md">
-          <h1 className="text-base font-bold text-gray-800 mb-1">Iniciar sesión</h1>
-          <p className="text-xs text-gray-500 mb-5">Accede para gestionar tus gastos.</p>
+        <AuthField
+          id="password"
+          label="Contraseña"
+          type="password"
+          autoComplete="current-password"
+          value={form.password}
+          onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+          placeholder="••••••••"
+        />
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="sm:grid sm:grid-cols-[90px_1fr] sm:items-center sm:gap-3">
-              <label htmlFor="username" className="block text-xs font-medium text-gray-600 mb-1 sm:mb-0 sm:text-right">
-                Usuario
-              </label>
-              <input
-                id="username"
-                type="text"
-                autoComplete="username"
-                autoFocus
-                value={form.username}
-                onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-                placeholder="tu.usuario"
-                className={inputClass}
-              />
-            </div>
-
-            <div className="sm:grid sm:grid-cols-[90px_1fr] sm:items-center sm:gap-3">
-              <label htmlFor="password" className="block text-xs font-medium text-gray-600 mb-1 sm:mb-0 sm:text-right">
-                Contraseña
-              </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={form.password}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="••••••••"
-                className={inputClass}
-              />
-            </div>
-
-            {error && (
-              <p role="alert" className="text-red-500 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
-            {notice && <p className="text-gray-500 text-xs">{notice}</p>}
-
-            <div className="flex items-center justify-between gap-3 pt-1">
-              <Button type="submit" loading={loading} className="px-6">
-                Ingresar
-              </Button>
-              <button
-                type="button"
-                onClick={() => setNotice('El registro de usuarios aún no está disponible.')}
-                className="text-blue-500 hover:underline text-sm"
-              >
-                Crear cuenta
-              </button>
-            </div>
-          </form>
-
-          <p className="mt-5 pt-4 border-t border-gray-100 text-xs text-gray-400">
-            Modo demo: cualquier usuario y contraseña inician sesión. Usa{' '}
-            <code className="font-mono text-gray-500">{MOCK_INVALID_USERNAME}</code> como usuario para ver el error.
+        {error && (
+          <p role="alert" className="text-red-500 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            {error}
           </p>
+        )}
+        {notice && (
+          <p className="text-green-600 text-xs bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+            {notice}
+          </p>
+        )}
+
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <Button type="submit" loading={loading} className="px-6">
+            Ingresar
+          </Button>
+          <button type="button" onClick={onGoToRegister} className="text-blue-500 hover:underline text-sm">
+            Crear cuenta
+          </button>
         </div>
-      </main>
-    </div>
+      </form>
+    </AuthShell>
   );
 };

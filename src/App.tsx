@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MovementsList } from './components/movements/MovementsList';
 import { SettingsPage } from './pages/SettingsPage';
@@ -38,9 +39,38 @@ function AuthenticatedApp() {
   );
 }
 
+function UnauthenticatedApp() {
+  const [view, setView] = useState<'login' | 'register'>('login');
+  // Usuario recién creado, para precargarlo en el login tras registrarse.
+  const [registeredUsername, setRegisteredUsername] = useState('');
+
+  if (view === 'register') {
+    return (
+      <RegisterPage
+        onSuccess={username => {
+          setRegisteredUsername(username);
+          setView('login');
+        }}
+        onGoToLogin={() => setView('login')}
+      />
+    );
+  }
+
+  return (
+    <LoginPage
+      initialUsername={registeredUsername}
+      initialNotice={registeredUsername ? 'Cuenta creada. Ya puedes iniciar sesión.' : ''}
+      onGoToRegister={() => {
+        setRegisteredUsername('');
+        setView('register');
+      }}
+    />
+  );
+}
+
 function AppContent() {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <AuthenticatedApp /> : <LoginPage />;
+  return isAuthenticated ? <AuthenticatedApp /> : <UnauthenticatedApp />;
 }
 
 export default function App() {

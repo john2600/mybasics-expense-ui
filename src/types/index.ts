@@ -80,6 +80,14 @@ export interface LoginPayload {
   password: string;
 }
 
+/** Body de POST /user. El backend espera exactamente estas claves. */
+export interface RegisterPayload {
+  username: string;
+  name: string;
+  email: string;
+  password: string;
+}
+
 export interface ApiEnvelope<T> {
   data?: T;
   error?: string;
