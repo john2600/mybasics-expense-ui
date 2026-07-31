@@ -41,14 +41,14 @@ function AuthenticatedApp() {
 
 function UnauthenticatedApp() {
   const [view, setView] = useState<'login' | 'register'>('login');
-  // Usuario recién creado, para precargarlo en el login tras registrarse.
-  const [registeredUsername, setRegisteredUsername] = useState('');
+  // Email recién registrado, para precargarlo en el login.
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   if (view === 'register') {
     return (
       <RegisterPage
-        onSuccess={username => {
-          setRegisteredUsername(username);
+        onSuccess={email => {
+          setRegisteredEmail(email);
           setView('login');
         }}
         onGoToLogin={() => setView('login')}
@@ -58,10 +58,10 @@ function UnauthenticatedApp() {
 
   return (
     <LoginPage
-      initialUsername={registeredUsername}
-      initialNotice={registeredUsername ? 'Cuenta creada. Ya puedes iniciar sesión.' : ''}
+      initialEmail={registeredEmail}
+      initialNotice={registeredEmail ? 'Cuenta creada. Ya puedes iniciar sesión.' : ''}
       onGoToRegister={() => {
-        setRegisteredUsername('');
+        setRegisteredEmail('');
         setView('register');
       }}
     />

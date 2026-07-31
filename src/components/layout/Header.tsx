@@ -6,7 +6,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
-  const { session, logout } = useAuth();
+  const { session, logout, isLoggingOut } = useAuth();
 
   return (
     <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center px-4 z-30">
@@ -23,12 +23,13 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
       {session && (
         <div className="ml-auto flex items-center gap-3">
-          <span className="hidden sm:inline text-sm text-gray-600">{session.user.name}</span>
+          <span className="hidden sm:inline text-sm text-gray-600">{session.user.email}</span>
           <button
             onClick={logout}
-            className="text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md px-2 py-1 transition-colors"
+            disabled={isLoggingOut}
+            className="text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md px-2 py-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Salir
+            {isLoggingOut ? 'Saliendo…' : 'Salir'}
           </button>
         </div>
       )}

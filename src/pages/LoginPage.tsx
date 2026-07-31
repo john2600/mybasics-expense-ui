@@ -3,24 +3,23 @@ import { Button } from '../components/common/Button';
 import { AuthField } from '../components/auth/AuthField';
 import { AuthShell } from '../components/auth/AuthShell';
 import { useAuth } from '../context/AuthContext';
-import { MOCK_INVALID_USERNAME } from '../services/authApi';
 
 interface LoginPageProps {
   onGoToRegister: () => void;
-  /** Usuario precargado, p. ej. el recién registrado. */
-  initialUsername?: string;
+  /** Email precargado, p. ej. el de la cuenta recién creada. */
+  initialEmail?: string;
   /** Aviso informativo mostrado al abrir la pantalla. */
   initialNotice?: string;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({
   onGoToRegister,
-  initialUsername = '',
+  initialEmail = '',
   initialNotice = '',
 }) => {
   const { login } = useAuth();
 
-  const [form, setForm] = useState({ username: initialUsername, password: '' });
+  const [form, setForm] = useState({ email: initialEmail, password: '' });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(initialNotice);
   const [loading, setLoading] = useState(false);
@@ -30,42 +29,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setError('');
     setNotice('');
 
-    if (!form.username.trim() || !form.password) {
-      setError('Ingresa usuario y contraseña.');
+    if (!form.email.trim() || !form.password) {
+      setError('Ingresa tu email y contraseña.');
       return;
     }
 
     setLoading(true);
     try {
-      await login({ username: form.username, password: form.password });
+      await login({ email: form.email.trim().toLowerCase(), password: form.password });
     } catch (err: unknown) {
+      // Credenciales inválidas → 401 "invalid email or password".
       setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión');
       setLoading(false);
     }
   };
 
   return (
-    <AuthShell
-      title="Iniciar sesión"
-      subtitle="Accede para gestionar tus gastos."
-      footer={
-        <>
-          Modo demo: cualquier usuario y contraseña inician sesión. Usa{' '}
-          <code className="font-mono text-gray-500">{MOCK_INVALID_USERNAME}</code> como usuario para
-          ver el error.
-        </>
-      }
-    >
+    <AuthShell title="Iniciar sesión" subtitle="Accede para gestionar tus gastos.">
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <AuthField
-          id="username"
-          label="Usuario"
-          type="text"
-          autoComplete="username"
+          id="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
           autoFocus
-          value={form.username}
-          onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-          placeholder="tu.usuario"
+          value={form.email}
+          onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+          placeholder="john@example.com"
         />
 
         <AuthField

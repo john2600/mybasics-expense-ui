@@ -66,17 +66,21 @@ export interface BalanceSummary {
 }
 
 export interface AuthUser {
-  username: string;
-  name: string;
+  email: string;
 }
 
+/**
+ * Lo que la UI sabe de la sesión. La sesión real vive en la cookie `session`
+ * (HttpOnly): no hay token accesible desde JS, esto es solo para pintar la
+ * cabecera y recordar que había sesión tras recargar.
+ */
 export interface AuthSession {
-  token: string;
   user: AuthUser;
 }
 
+/** El backend autentica por email, no por username. */
 export interface LoginPayload {
-  username: string;
+  email: string;
   password: string;
 }
 

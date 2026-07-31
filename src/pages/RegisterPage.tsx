@@ -6,8 +6,8 @@ import { authApi } from '../services/authApi';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, validateRegisterPayload } from '../utils/validators';
 
 interface RegisterPageProps {
-  /** Se llama tras el 201, con el username ya normalizado. */
-  onSuccess: (username: string) => void;
+  /** Se llama tras el 201, con el email normalizado (con el que se hace login). */
+  onSuccess: (email: string) => void;
   onGoToLogin: () => void;
 }
 
@@ -32,7 +32,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onGoToLog
     setLoading(true);
     try {
       await authApi.register(form);
-      onSuccess(form.username.trim().toLowerCase());
+      onSuccess(form.email.trim().toLowerCase());
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudo crear la cuenta');
       setLoading(false);
@@ -40,18 +40,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onGoToLog
   };
 
   return (
-    <AuthShell
-      title="Crear cuenta"
-      subtitle="Regístrate para empezar a registrar tus gastos."
-      footer={
-        <>
-          Modo demo: la cuenta no se guarda en ningún servidor. Los usuarios{' '}
-          <code className="font-mono text-gray-500">john</code> y{' '}
-          <code className="font-mono text-gray-500">admin</code> están ocupados, para probar el error
-          de duplicado.
-        </>
-      }
-    >
+    <AuthShell title="Crear cuenta" subtitle="Regístrate para empezar a registrar tus gastos.">
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <AuthField
           id="username"
