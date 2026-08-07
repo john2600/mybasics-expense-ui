@@ -84,6 +84,15 @@ export interface LoginPayload {
   password: string;
 }
 
+/**
+ * Body de POST /change_password. El backend anida las credenciales actuales
+ * bajo `login_request` y espera la nueva en la raíz — no es un objeto plano.
+ */
+export interface ChangePasswordPayload {
+  login_request: LoginPayload;
+  new_password: string;
+}
+
 /** Body de POST /user. El backend espera exactamente estas claves. */
 export interface RegisterPayload {
   username: string;
