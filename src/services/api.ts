@@ -1,10 +1,42 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8082/api/v1';
+// Relativa por defecto: el proxy de Vite la reenvía al API sin CORS, para que
+// la cookie de sesión viaje como first-party (ver vite.config.ts).
+const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
+/** Error de un endpoint protegido sin sesión válida (401). */
+export class UnauthorizedError extends Error {
+  constructor(message = 'not authenticated') {
+    super(message);
+    this.name = 'UnauthorizedError';
+  }
+}
+
+/**
+ * Rutas públicas que también responden 401: en `/user/login` un 401 significa
+ * credenciales inválidas, no una sesión caducada, así que no debe disparar el
+ * cierre de sesión global.
+ */
+const PUBLIC_PATHS = ['/user', '/user/login'];
+
+let onUnauthorized: (() => void) | null = null;
+
+/** Registra qué hacer cuando el backend rechaza la sesión. */
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json' },
+    // La sesión viaja en la cookie `session` (HttpOnly), no en un header.
+    credentials: 'include',
     ...options,
   });
+
+  if (res.status === 401) {
+    const json = await res.json().catch(() => ({}));
+    if (!PUBLIC_PATHS.includes(path.split('?')[0])) onUnauthorized?.();
+    throw new UnauthorizedError((json as { error?: string }).error || 'not authenticated');
+  }
 
   if (res.status === 204) return undefined as T;
 
@@ -17,9 +49,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return json.data as T;
 }
 
+export { request };
+
 async function downloadExport(format: string, months: number): Promise<{ blob: Blob; filename: string }> {
   const qs = new URLSearchParams({ format, months: String(months) });
-  const res = await fetch(`${BASE_URL}/reports/export?${qs}`);
+  const res = await fetch(`${BASE_URL}/reports/export?${qs}`, { credentials: 'include' });
   if (!res.ok) {
     const json = await res.json().catch(() => ({}));
     throw new Error((json as { error?: string }).error || `HTTP ${res.status}`);

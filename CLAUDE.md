@@ -16,7 +16,7 @@ There are no tests configured. No test runner is installed.
 
 ## Environment
 
-Copy `.env.example` to `.env` and set `VITE_API_URL` if the backend runs on a different host/port. Default is `http://localhost:8082/api/v1`.
+Copy `.env.example` to `.env` and set `VITE_API_URL` if the backend runs on a different host/port. Default is `http://localhost:8080/api/v1` (the Go API run locally); Docker Compose exposes it on `8081` instead.
 
 ## Architecture
 
@@ -29,6 +29,18 @@ There is no router library. Navigation is plain `useState` in `App.tsx` — a `p
 All server state goes through **TanStack Query v5** (`@tanstack/react-query`). The single `QueryClient` lives in `App.tsx` with `staleTime: 30_000` and `retry: 1`.
 
 `src/services/api.ts` is the only HTTP layer — a thin `request<T>` wrapper around `fetch` that unwraps the backend envelope `{ data, error }` and throws on non-2xx. All hooks call `api.*` methods; no component calls `fetch` directly.
+
+### Authentication
+
+Server-side sessions: the backend sets an **HttpOnly `session` cookie** (scs, stored in MySQL). There is no token reachable from JS, so every request goes out with `credentials: 'include'` — that line in `request` is what keeps the user logged in.
+
+- `POST /user` (public) — register, `{ username, name, email, password }`, password 8–72 chars.
+- `POST /user/login` (public) — **authenticates by `email`, not `username`**. `401` means bad credentials.
+- `POST /user/logout` — destroys only the session of the cookie sent, so other devices stay logged in.
+
+Everything under `/api/v1` except `/user` and `/user/login` is protected and scoped to the session user; `user_id` is never sent in a body or query. A `401` on any protected call means the session died: `request` calls the handler registered via `setUnauthorizedHandler`, which `AuthProvider` uses to drop the session and bounce to the login. Add new public routes to `PUBLIC_PATHS` in `api.ts` or their `401` will log the user out.
+
+`AuthProvider` (`src/context/AuthContext.tsx`) keeps only `{ user: { email } }` in `localStorage`, purely so a reload doesn't flash the login screen — it is a hint, never the source of truth. The API returns no user object on login.
 
 ### Billing period logic
 
