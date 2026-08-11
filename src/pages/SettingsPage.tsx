@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
+import { ChangePasswordCard } from '../components/settings/ChangePasswordCard';
 import { useIncomeConfig } from '../hooks/useFinancialSummary';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
@@ -76,6 +77,8 @@ export const SettingsPage: React.FC = () => {
           </Button>
         </form>
       </Card>
+
+      <ChangePasswordCard />
     </div>
   );
 };

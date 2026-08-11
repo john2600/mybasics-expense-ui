@@ -40,7 +40,20 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (res.status === 204) return undefined as T;
 
-  const json = await res.json();
+  // No todo lo que devuelve el API es JSON: el 404 del router de chi es texto
+  // plano, y parsearlo a ciegas enterraba el error real bajo un fallo de JSON.
+  const body = await res.text();
+  let json: { data?: unknown; error?: string } = {};
+
+  if (body) {
+    try {
+      json = JSON.parse(body);
+    } catch {
+      throw new Error(
+        res.ok ? 'El servidor devolvió una respuesta no válida' : `HTTP ${res.status}: ${body.slice(0, 120)}`,
+      );
+    }
+  }
 
   if (!res.ok) {
     throw new Error(json.error || `HTTP ${res.status}`);

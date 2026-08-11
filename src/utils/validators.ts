@@ -43,3 +43,38 @@ export function validateRegisterPayload(payload: RegisterPayload): string | null
 
   return null;
 }
+
+/**
+ * Validación en cliente del cambio de contraseña.
+ *
+ * Refleja las reglas de `ChangePasswordRequest.Validate()` del backend, pero con
+ * mensajes presentables: los del servidor llegan mezclando idiomas y con el
+ * error de bcrypt pegado detrás, así que aquí no se copian literalmente como sí
+ * se hace en el registro.
+ *
+ * `confirmation` es solo de cliente — el backend no la conoce; evita quedarse
+ * fuera por una errata en la contraseña nueva.
+ */
+export function validatePasswordChange(
+  currentPassword: string,
+  newPassword: string,
+  confirmation: string,
+): string | null {
+  if (!currentPassword) return 'Ingresa tu contraseña actual.';
+  if (currentPassword.length < PASSWORD_MIN_LENGTH) {
+    return `La contraseña actual debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`;
+  }
+  if (!newPassword) return 'Ingresa la nueva contraseña.';
+  if (newPassword.length < PASSWORD_MIN_LENGTH) {
+    return `La nueva contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`;
+  }
+  if (newPassword.length > PASSWORD_MAX_LENGTH) {
+    return `La nueva contraseña no puede superar los ${PASSWORD_MAX_LENGTH} caracteres.`;
+  }
+  if (newPassword === currentPassword) {
+    return 'La nueva contraseña debe ser distinta de la actual.';
+  }
+  if (confirmation !== newPassword) return 'Las contraseñas no coinciden.';
+
+  return null;
+}

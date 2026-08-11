@@ -1,5 +1,5 @@
 import { request } from './api';
-import type { LoginPayload, RegisterPayload } from '../types';
+import type { ChangePasswordPayload, LoginPayload, RegisterPayload } from '../types';
 
 /**
  * Autenticación contra el API real.
@@ -26,4 +26,35 @@ export const authApi = {
    * sesión abierta en otro dispositivo, esa sigue viva. Sin sesión → 401.
    */
   logout: () => request<string>('/user/logout', { method: 'POST' }),
+
+  /**
+   * Cambia la contraseña del usuario en sesión. Requiere sesión, y además la
+   * contraseña actual en el body: el servidor la verifica antes de aplicar el
+   * cambio. Devuelve "password updated"; cualquier fallo es un `400`.
+   *
+   * No aparece en el README del backend: el contrato sale de
+   * `internal/users/handler.go` + `model.go`.
+   */
+  changePassword: (payload: ChangePasswordPayload) =>
+    request<string>('/change_password', { method: 'POST', body: JSON.stringify(payload) }),
 };
+
+/**
+ * Traduce los errores de `/change_password` a algo presentable.
+ *
+ * El servidor envuelve el error de bcrypt y devuelve cadenas como
+ * `password not coincidences  crypto/bcrypt: hashedPassword is not the hash of
+ * the given password`, que no se le pueden enseñar a un usuario.
+ */
+export function friendlyChangePasswordError(message: string): string {
+  if (message.includes('password not coincidences')) {
+    return 'La contraseña actual no es correcta.';
+  }
+  if (message.includes('must be different')) {
+    return 'La nueva contraseña debe ser distinta de la actual.';
+  }
+  if (message.includes('sql: no rows') || message.includes('Error updating password')) {
+    return 'No se pudo actualizar la contraseña. Vuelve a iniciar sesión e inténtalo de nuevo.';
+  }
+  return message;
+}
