@@ -87,15 +87,15 @@ export const DashboardPage: React.FC = () => {
 
   const isCustom = !!customPeriod;
 
-  const { data: expenseMovements, isLoading: loadingExpenses } = useExpenses({
+  const { data: expenseList, isLoading: loadingExpenses } = useExpenses({
     date_from: activePeriod.from,
     date_to: activePeriod.to,
   });
 
   const groupedExpenses = useMemo<GroupedByCategory[]>(() => {
-    if (!expenseMovements) return [];
+    if (!expenseList) return [];
     const map = new Map<string, GroupedByCategory>();
-    for (const m of expenseMovements) {
+    for (const m of expenseList.movements) {
       const cat = m.category || 'Sin categoría';
       if (!map.has(cat)) map.set(cat, { category: cat, total: 0, movements: [] });
       const g = map.get(cat)!;
@@ -103,7 +103,7 @@ export const DashboardPage: React.FC = () => {
       g.movements.push(m);
     }
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [expenseMovements]);
+  }, [expenseList]);
 
   const { data: groupedIncomes, isLoading: loadingIncomes } = useMovements({
     type: 'I',
@@ -131,7 +131,7 @@ export const DashboardPage: React.FC = () => {
 
   const consecutiveDaysWithoutExpenses = useMemo(() => {
     if (!recentExpenses) return null;
-    const datesWithExpenses = new Set(recentExpenses.map(m => m.date.slice(0, 10)));
+    const datesWithExpenses = new Set(recentExpenses.movements.map(m => m.date.slice(0, 10)));
     let count = 0;
     const cursor = new Date();
     while (count <= 30) {
@@ -303,7 +303,7 @@ export const DashboardPage: React.FC = () => {
       {/* Lista de gastos — ancho completo */}
       <DailyMovements
         title="Gastos del período"
-        movements={expenseMovements}
+        movements={expenseList?.movements}
         loading={loadingExpenses}
         onDelete={(id) => { if (confirm('¿Eliminar?')) deleteMovement.mutate(id); }}
       />

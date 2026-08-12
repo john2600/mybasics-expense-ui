@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { MovementItem } from './MovementItem';
+import { MovementsTotals } from './MovementsTotals';
 import { AddMovementForm } from './AddMovementForm';
 import { Button } from '../common/Button';
 import { LoadingSpinner } from '../common/Loading';
 import { ErrorMessage } from '../common/ErrorMessage';
-import { useMovements, useDeleteMovement } from '../../hooks/useMovements';
+import { useMovements, useExpenses, useDeleteMovement } from '../../hooks/useMovements';
 import { useCategories } from '../../hooks/useCategories';
 import { useDashboardData } from '../../hooks/useDashboardData';
+import { summarizeMovements } from '../../utils/totals';
 import type { Movement } from '../../types';
 
 export const MovementsList: React.FC = () => {
@@ -48,6 +50,28 @@ export const MovementsList: React.FC = () => {
       .sort((a, b) => b.date.localeCompare(a.date)) ?? [],
     [grouped]
   );
+
+  // El total de gastos lo da el servidor sobre el mismo filtro. Sin `type`,
+  // porque el endpoint ya devuelve solo gastos.
+  const expenseParams = useMemo(() => {
+    const p: Record<string, string> = {};
+    if (dateFrom) p.date_from = dateFrom;
+    if (dateTo) p.date_to = dateTo;
+    if (categoryFilter) p.category_id = categoryFilter;
+    return p;
+  }, [dateFrom, dateTo, categoryFilter]);
+
+  // Con el filtro en "Ingresos" el listado no muestra gastos: no se pide.
+  const { data: expenseList } = useExpenses(typeFilter === 'I' ? undefined : expenseParams);
+
+  const totals = useMemo(() => {
+    const local = summarizeMovements(movements);
+    // Preferimos el total del backend: es la fuente de verdad y no depende de
+    // lo que se haya paginado en cliente.
+    return typeFilter === 'I' || expenseList === undefined
+      ? local
+      : { ...local, expenses: expenseList.total, net: local.incomes - expenseList.total };
+  }, [movements, expenseList, typeFilter]);
 
   const deleteMovement = useDeleteMovement();
 
@@ -132,6 +156,8 @@ export const MovementsList: React.FC = () => {
           <Button onClick={() => setShowForm(true)}>Agregar movimiento</Button>
         </div>
       ) : (
+        <>
+        <MovementsTotals totals={totals} typeFilter={typeFilter} />
         <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
           {movements.map(m => (
             <MovementItem
@@ -142,6 +168,7 @@ export const MovementsList: React.FC = () => {
             />
           ))}
         </div>
+        </>
       )}
 
       {(showForm || editingMovement) && (
