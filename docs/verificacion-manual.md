@@ -146,11 +146,17 @@ React DevTools son normales.
 ## 5. Comprobaciones de código
 
 ```bash
-npx tsc --noEmit    # sin salida = correcto
+npm test            # Vitest: debe terminar en "Tests  N passed"
+npx tsc -b          # sin salida = correcto
 npm run build       # debe terminar en "✓ built in ..."
 ```
 
 El aviso de `chunks are larger than 500 kB` es preexistente y no bloquea.
+
+> **No uses `tsc --noEmit`.** El `tsconfig.json` raíz es de tipo solución
+> (`"files": []` y solo referencias), así que ese comando no comprueba ningún
+> fichero y **siempre pasa**. Da una sensación falsa de seguridad: `tsc -b` sí
+> compila los proyectos referenciados.
 
 > `npm run lint` **está roto** en el repo: falta `eslint.config.js` y ESLint 9 lo
 > exige. Falla igual sin tus cambios, así que no lo tomes como señal.
