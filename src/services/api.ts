@@ -64,6 +64,33 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export { request };
 
+/**
+ * Normaliza la respuesta de `/movements/expenses` a `ExpenseList`.
+ *
+ * El endpoint devolvía un `Movement[]` plano y ahora devuelve
+ * `{ total, movements }`. Aceptamos ambas formas porque una instancia del API
+ * anterior al cambio sigue sirviendo la vieja, y ahí el total se suma en
+ * cliente. **Se puede borrar en cuanto todos los entornos estén al día**; el
+ * total autoritativo es el del servidor.
+ */
+export function normalizeExpenseList(
+  payload: import('../types').ExpenseList | import('../types').Movement[] | null | undefined,
+): import('../types').ExpenseList {
+  if (!payload) return { total: 0, movements: [] };
+
+  if (Array.isArray(payload)) {
+    return {
+      total: payload.reduce((sum, m) => sum + m.amount, 0),
+      movements: payload,
+    };
+  }
+
+  return {
+    total: payload.total ?? 0,
+    movements: payload.movements ?? [],
+  };
+}
+
 async function downloadExport(format: string, months: number): Promise<{ blob: Blob; filename: string }> {
   const qs = new URLSearchParams({ format, months: String(months) });
   const res = await fetch(`${BASE_URL}/reports/export?${qs}`, { credentials: 'include' });
@@ -91,9 +118,12 @@ export const api = {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return request<import('../types').GroupedByCategory[]>(`/movements${qs}`);
   },
-  getExpenses: (params?: Record<string, string>) => {
+  getExpenses: async (params?: Record<string, string>) => {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-    return request<import('../types').Movement[]>(`/movements/expenses${qs}`);
+    const data = await request<import('../types').ExpenseList | import('../types').Movement[]>(
+      `/movements/expenses${qs}`,
+    );
+    return normalizeExpenseList(data);
   },
   getMovementsSummary: () => request<import('../types').MonthlySummary[]>('/movements/summary'),
   getMovement: (id: number) => request<import('../types').Movement>(`/movements/${id}`),

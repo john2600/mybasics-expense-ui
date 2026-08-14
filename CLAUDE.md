@@ -9,10 +9,12 @@ npm run dev        # start dev server (http://localhost:5173)
 npm run build      # type-check + vite build
 npm run lint       # eslint with zero warnings allowed
 npm run preview    # serve the dist/ build locally
-npx tsc --noEmit   # type-check only, no output
+npx tsc -b         # type-check only, no bundle
 ```
 
-There are no tests configured. No test runner is installed.
+**Do not use `tsc --noEmit` here.** The root `tsconfig.json` is solution-style (`"files": []` plus references), so that command type-checks nothing and always exits 0. Use `tsc -b`.
+
+Tests run on **Vitest** (`npm test`, or `npm run test:watch`). There is no jsdom or Testing Library: the suite covers pure functions and the API layer, so components are tested through the logic extracted out of them (`src/utils/totals.ts`, `normalizeExpenseList`) rather than by rendering.
 
 ## Environment
 
@@ -52,7 +54,7 @@ Any feature that needs "current period" must go through `useDashboardData` or ca
 
 - `MovementType` is `"E"` (expense) | `"I"` (income) — **not** `"expense"/"income"`.
 - `GET /movements` returns `GroupedByCategory[]` (movements nested under each category group).
-- `GET /movements/expenses` returns a flat `Movement[]` sorted newest-first — use this for lists.
+- `GET /movements/expenses` returns `ExpenseList` — `{ total, movements }`, movements sorted newest-first. `total` is summed server-side over the rows it returns, **after** `limit` is applied: verified against the API, `?limit=1` on two expenses of 42500 + 7500 answers `total: 42500`, not `50000`. So `limit` and `total` do not combine — asking for a page gives you that page's total, never the filter's. Callers that need a real total must omit `limit` (`MovementsList` does). Treat `total` as authoritative and don't recompute it client-side. `api.getExpenses` runs the payload through `normalizeExpenseList`, which also accepts the older flat `Movement[]` (summing client-side) until every environment serves the new shape.
 - `GET /balance` returns `BalanceSummary` which embeds `income_config`; balance = `(income_config.amount + incomes) − expenses`.
 - `DELETE /movements/{id}` returns `204 No Content` (no body).
 - `Category` has no `type` field from the API — categories are universal. The `EXPENSE_CATEGORIES`/`INCOME_CATEGORIES` split in `src/constants/categories.ts` is a local fallback only.

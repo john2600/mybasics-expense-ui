@@ -31,6 +31,19 @@ export interface GroupedByCategory {
   movements: Movement[];
 }
 
+/**
+ * Respuesta de `GET /movements/expenses`: la lista plana de gastos más el
+ * `total` de los gastos que casan con el filtro aplicado.
+ *
+ * El backend lo suma en memoria sobre esa misma lista, así que `total` siempre
+ * corresponde a `movements` — sin filtro es el total de todos los gastos; con
+ * `category_id` o rango de fechas, el de ese subconjunto.
+ */
+export interface ExpenseList {
+  total: number;
+  movements: Movement[];
+}
+
 export interface MonthlySummary {
   year: number;
   month: number;
