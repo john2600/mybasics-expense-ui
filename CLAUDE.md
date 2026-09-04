@@ -34,15 +34,19 @@ All server state goes through **TanStack Query v5** (`@tanstack/react-query`). T
 
 ### Authentication
 
-Server-side sessions: the backend sets an **HttpOnly `session` cookie** (scs, stored in MySQL). There is no token reachable from JS, so every request goes out with `credentials: 'include'` — that line in `request` is what keeps the user logged in.
+**Bearer tokens.** Every request carries `Authorization: Bearer <token>`; `request` adds it from the module-level token set by `setAuthToken`, which only `AuthProvider` should write. Cookies are gone — do **not** reintroduce `credentials: 'include'`: the API answers `Access-Control-Allow-Origin: *`, which browsers reject for credentialed requests.
 
-- `POST /user` (public) — register, `{ username, name, email, password }`, password 8–72 chars.
-- `POST /user/login` (public) — **authenticates by `email`, not `username`**. `401` means bad credentials.
-- `POST /user/logout` — destroys only the session of the cookie sent, so other devices stay logged in.
+- `POST /user` (public) — register, `{ username, name, email, password }`, password 8–72 chars. Duplicates → `400 "username or email already in use"`. Also issues an activation token and sends a welcome email.
+- `GET /user/activate?token=…` (public) — activates from the emailed link. **Does not gate login yet**: an unactivated user can still get a token, which is why there is no activation screen.
+- `POST /tokens/authentication` (public) — login by `email`, returns `{ authentication_token: { token, expiry } }` with a **24 h** life. `401` means bad credentials (same message for unknown email and wrong password).
+- `POST /tokens/logout` — deletes **every** token of the user, so it logs out all devices. Verified: two tokens of the same user both go to `401` after one call.
+- `POST /change_password` — needs the token *and* re-verifies the current password in the body.
 
-Everything under `/api/v1` except `/user` and `/user/login` is protected and scoped to the session user; `user_id` is never sent in a body or query. A `401` on any protected call means the session died: `request` calls the handler registered via `setUnauthorizedHandler`, which `AuthProvider` uses to drop the session and bounce to the login. Add new public routes to `PUBLIC_PATHS` in `api.ts` or their `401` will log the user out.
+`/user/login` and `/user/logout` are the **deprecated** cookie-session routes. They still respond, but protected endpoints validate the token, not the cookie — `/user/logout` returns `200` and leaves the token alive. Don't use them.
 
-`AuthProvider` (`src/context/AuthContext.tsx`) keeps only `{ user: { email } }` in `localStorage`, purely so a reload doesn't flash the login screen — it is a hint, never the source of truth. The API returns no user object on login.
+Everything under `/api/v1` except `/user`, `/user/activate` and `/tokens/authentication` is protected and scoped to the token's user; `user_id` is never sent in a body or query. A `401` on a protected call means the token expired or was revoked (including by a logout on another device): `request` calls the handler registered via `setUnauthorizedHandler`, which `AuthProvider` uses to drop the session and bounce to the login. Add new public routes to `PUBLIC_PATHS` in `api.ts` or their `401` will log the user out.
+
+`AuthProvider` (`src/context/AuthContext.tsx`) stores `{ token, expiry, user: { email } }` in `localStorage`. Unlike the old cookie hint, this **is** the credential — it is reachable from JS, so an XSS can lift it. Expired sessions are dropped on read (`parseStoredSession`) rather than waiting for a `401`. The email is the one typed at login; the API returns no user object.
 
 ### Billing period logic
 
