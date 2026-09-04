@@ -27,6 +27,9 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           <button
             onClick={logout}
             disabled={isLoggingOut}
+            // El backend borra todos los tokens del usuario, así que esto
+            // cierra la sesión también en el resto de dispositivos.
+            title="Cierra la sesión en todos tus dispositivos"
             className="text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md px-2 py-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoggingOut ? 'Saliendo…' : 'Salir'}

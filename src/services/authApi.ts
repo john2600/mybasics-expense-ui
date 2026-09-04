@@ -1,40 +1,58 @@
 import { request } from './api';
-import type { ChangePasswordPayload, LoginPayload, RegisterPayload } from '../types';
+import type {
+  AuthTokenResponse,
+  ChangePasswordPayload,
+  LoginPayload,
+  RegisterPayload,
+} from '../types';
 
 /**
- * Autenticación contra el API real.
+ * Autenticación por token (`Authorization: Bearer <token>`).
  *
- * El backend usa sesiones de servidor (cookie `session`, HttpOnly, store en
- * MySQL vía scs). No hay token que guardar: la sesión la mantiene el navegador
- * y `request` envía la cookie con `credentials: 'include'`.
+ * Sustituye al esquema anterior de cookie de sesión (`/user/login` y
+ * `/user/logout`), que sigue existiendo en el backend pero está **deprecado**:
+ * los endpoints protegidos ya validan el token, no la cookie. No usar esas dos
+ * rutas.
  *
- * Las tres respuestas traen una cadena en `data`:
- *   POST /user         -> 201 "user created"
- *   POST /user/login   -> 200 "login successful"   (+ Set-Cookie: session)
- *   POST /user/logout  -> 200 "logout successful"  (destruye esa sesión)
+ *   POST /user                    -> 201 "user created"
+ *   GET  /user/activate?token=…   -> 200 "account activated"
+ *   POST /tokens/authentication   -> 201 { authentication_token: { token, expiry } }
+ *   POST /tokens/logout           -> 200 "logged out"
  */
 export const authApi = {
-  /** Login por email, no por username. Credenciales inválidas → 401. */
+  /**
+   * Login: canjea email + password por un token de 24 h. Credenciales
+   * inválidas → 401 "invalid email or password" (el mismo mensaje para email
+   * inexistente y password incorrecta, para no revelar qué cuentas existen).
+   */
   login: (payload: LoginPayload) =>
-    request<string>('/user/login', { method: 'POST', body: JSON.stringify(payload) }),
+    request<AuthTokenResponse>('/tokens/authentication', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
+  /**
+   * Registro. Emite además un token de activación (3 días) y manda el correo
+   * de bienvenida. Duplicados → 400 "username or email already in use".
+   */
   register: (payload: RegisterPayload) =>
     request<string>('/user', { method: 'POST', body: JSON.stringify(payload) }),
 
   /**
-   * Cierra únicamente la sesión de esta cookie: si el mismo usuario tiene
-   * sesión abierta en otro dispositivo, esa sigue viva. Sin sesión → 401.
+   * Activación desde el enlace del correo. Hoy **no** condiciona el login: un
+   * usuario sin activar puede obtener token igualmente.
    */
-  logout: () => request<string>('/user/logout', { method: 'POST' }),
+  activate: (token: string) =>
+    request<string>(`/user/activate?token=${encodeURIComponent(token)}`),
 
   /**
-   * Cambia la contraseña del usuario en sesión. Requiere sesión, y además la
-   * contraseña actual en el body: el servidor la verifica antes de aplicar el
-   * cambio. Devuelve "password updated"; cualquier fallo es un `400`.
-   *
-   * No aparece en el README del backend: el contrato sale de
-   * `internal/users/handler.go` + `model.go`.
+   * Logout: borra **todos** los tokens del usuario, no solo el de este
+   * dispositivo — verificado contra el API, dos tokens del mismo usuario pasan
+   * a 401 tras una sola llamada. Cerrar sesión aquí cierra la de todas partes.
    */
+  logout: () => request<string>('/tokens/logout', { method: 'POST' }),
+
+  /** Cambia la contraseña del usuario del token, re-verificando la actual. */
   changePassword: (payload: ChangePasswordPayload) =>
     request<string>('/change_password', { method: 'POST', body: JSON.stringify(payload) }),
 };
@@ -42,9 +60,9 @@ export const authApi = {
 /**
  * Traduce los errores de `/change_password` a algo presentable.
  *
- * El servidor envuelve el error de bcrypt y devuelve cadenas como
- * `password not coincidences  crypto/bcrypt: hashedPassword is not the hash of
- * the given password`, que no se le pueden enseñar a un usuario.
+ * El servidor envuelve el fallo de bcrypt y devuelve cadenas como
+ * `password not coincidences  models: invalid credentials`, que no se le pueden
+ * enseñar a un usuario.
  */
 export function friendlyChangePasswordError(message: string): string {
   if (message.includes('password not coincidences')) {

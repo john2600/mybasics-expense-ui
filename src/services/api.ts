@@ -1,8 +1,9 @@
-// Relativa por defecto: el proxy de Vite la reenvía al API sin CORS, para que
-// la cookie de sesión viaje como first-party (ver vite.config.ts).
+// Relativa por defecto: la sirve el proxy de Vite (ver vite.config.ts). Con
+// tokens el proxy ya no es imprescindible — no se envían cookies, así que el
+// `Allow-Origin: *` del API bastaría — pero evita depender de su CORS.
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
-/** Error de un endpoint protegido sin sesión válida (401). */
+/** Error de un endpoint protegido sin token válido (401). */
 export class UnauthorizedError extends Error {
   constructor(message = 'not authenticated') {
     super(message);
@@ -11,25 +12,43 @@ export class UnauthorizedError extends Error {
 }
 
 /**
- * Rutas públicas que también responden 401: en `/user/login` un 401 significa
- * credenciales inválidas, no una sesión caducada, así que no debe disparar el
- * cierre de sesión global.
+ * Rutas públicas que también responden 401: en `/tokens/authentication` un 401
+ * significa credenciales inválidas, no un token caducado, así que no debe
+ * disparar el cierre de sesión global.
+ *
+ * Si añades una ruta pública nueva, regístrala aquí o su 401 echará al usuario.
  */
-const PUBLIC_PATHS = ['/user', '/user/login'];
+const PUBLIC_PATHS = ['/user', '/user/activate', '/tokens/authentication'];
 
 let onUnauthorized: (() => void) | null = null;
 
-/** Registra qué hacer cuando el backend rechaza la sesión. */
+/** Registra qué hacer cuando el backend rechaza el token. */
 export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
 
+let authToken: string | null = null;
+
+/**
+ * Token que se enviará como `Authorization: Bearer` en cada petición.
+ *
+ * Vive en un módulo, no en el estado de React, porque `request` se llama desde
+ * hooks y servicios que no tienen acceso al contexto. `AuthProvider` es el
+ * único que debería escribirlo.
+ */
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    // La sesión viaja en la cookie `session` (HttpOnly), no en un header.
-    credentials: 'include',
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      // La sesión viaja en la cabecera, ya no en la cookie `session`.
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...options?.headers,
+    },
   });
 
   if (res.status === 401) {
@@ -93,7 +112,10 @@ export function normalizeExpenseList(
 
 async function downloadExport(format: string, months: number): Promise<{ blob: Blob; filename: string }> {
   const qs = new URLSearchParams({ format, months: String(months) });
-  const res = await fetch(`${BASE_URL}/reports/export?${qs}`, { credentials: 'include' });
+  // No pasa por `request` porque devuelve un blob, así que pone el token a mano.
+  const res = await fetch(`${BASE_URL}/reports/export?${qs}`, {
+    headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+  });
   if (!res.ok) {
     const json = await res.json().catch(() => ({}));
     throw new Error((json as { error?: string }).error || `HTTP ${res.status}`);

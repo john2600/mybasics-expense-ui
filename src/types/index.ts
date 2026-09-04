@@ -82,12 +82,29 @@ export interface AuthUser {
   email: string;
 }
 
+/** `authentication_token` que devuelve `POST /tokens/authentication`. */
+export interface AuthToken {
+  token: string;
+  /** Caducidad en ISO-8601. El backend los emite con 24 h de vida. */
+  expiry: string;
+}
+
+/** Envoltorio del `data` de `POST /tokens/authentication`. */
+export interface AuthTokenResponse {
+  authentication_token: AuthToken;
+}
+
 /**
- * Lo que la UI sabe de la sesión. La sesión real vive en la cookie `session`
- * (HttpOnly): no hay token accesible desde JS, esto es solo para pintar la
- * cabecera y recordar que había sesión tras recargar.
+ * La sesión del cliente.
+ *
+ * A diferencia del esquema anterior por cookie `HttpOnly`, aquí el token **sí**
+ * es accesible desde JS: hay que ponerlo en `Authorization` en cada petición.
+ * Por eso esto es la fuente de verdad de la sesión, no una simple pista para
+ * evitar el parpadeo al recargar.
  */
 export interface AuthSession {
+  token: string;
+  expiry: string;
   user: AuthUser;
 }
 
